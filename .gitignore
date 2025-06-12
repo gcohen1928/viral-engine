@@ -1,0 +1,36 @@
+# Environment variables
+.env
+.env.local
+
+# Google OAuth
+credentials.json
+token.json
+
+# Generated content
+generated_carousels/
+temp_images/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
