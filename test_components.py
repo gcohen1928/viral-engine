@@ -11,20 +11,31 @@ def test_google_drive():
         generator = CarouselGenerator()
         generator.authenticate_google_drive()
         
-        # Try to list files
-        query = f"'{generator.drive_folder_id}' in parents and mimeType contains 'image/'"
-        results = generator.drive_service.files().list(
-            q=query,
-            fields="files(id, name, mimeType)"
-        ).execute()
+        folder_names = ['selfies', 'legs', 'paths', 'friends', 'leo_screenshots']
         
-        files = results.get('files', [])
-        print(f"✓ Google Drive connected successfully!")
-        print(f"✓ Found {len(files)} images in folder")
-        
-        for file in files[:3]:  # Show first 3
-            print(f"   - {file['name']}")
+        for folder_name in folder_names:
+            folder_id = generator.folder_ids[folder_name]
+            if not folder_id:
+                print(f"❌ Missing folder ID for {folder_name}")
+                return False
+                
+            # Try to list files in each folder
+            query = f"'{folder_id}' in parents and mimeType contains 'image/'"
+            results = generator.drive_service.files().list(
+                q=query,
+                fields="files(id, name, mimeType)"
+            ).execute()
             
+            files = results.get('files', [])
+            print(f"✓ {folder_name}: {len(files)} images")
+            
+            if len(files) == 0:
+                print(f"⚠️  Warning: No images in {folder_name} folder")
+            else:
+                # Show first image as example
+                print(f"   Example: {files[0]['name']}")
+        
+        print(f"✓ Google Drive connected successfully!")
         return True
         
     except Exception as e:
@@ -108,7 +119,11 @@ def test_environment():
         'OPENAI_API_KEY',
         'BANNERBEAR_API_KEY', 
         'BANNERBEAR_TEMPLATE_ID',
-        'GOOGLE_DRIVE_FOLDER_ID'
+        'SELFIES_FOLDER_ID',
+        'LEGS_FOLDER_ID',
+        'PATHS_FOLDER_ID',
+        'FRIENDS_FOLDER_ID',
+        'LEO_SCREENSHOTS_FOLDER_ID'
     ]
     
     missing_vars = []

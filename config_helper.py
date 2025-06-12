@@ -67,7 +67,7 @@ def inspect_bannerbear_template():
     }},
     {{
         "name": "{image_layers[0]}",  # Image layer
-        "image_url": f"data:image/jpeg;base64,{{image_to_use['base64']}}"
+        "image_url": f"data:image/jpeg;base64,{{image['base64']}}"
     }}
 ]""")
                 
@@ -78,7 +78,7 @@ def inspect_bannerbear_template():
         print(f"❌ Error inspecting template: {e}")
 
 def list_google_drive_images():
-    """List images in Google Drive folder to verify setup"""
+    """List images in each of the 5 Google Drive folders"""
     
     try:
         from carousel_generator import CarouselGenerator
@@ -86,26 +86,93 @@ def list_google_drive_images():
         generator = CarouselGenerator()
         generator.authenticate_google_drive()
         
-        query = f"'{generator.drive_folder_id}' in parents and mimeType contains 'image/'"
-        results = generator.drive_service.files().list(
-            q=query,
-            fields="files(id, name, mimeType, size)",
-            pageSize=20
-        ).execute()
+        folder_info = {
+            'selfies': 'SELFIES_FOLDER_ID',
+            'legs': 'LEGS_FOLDER_ID', 
+            'paths': 'PATHS_FOLDER_ID',
+            'friends': 'FRIENDS_FOLDER_ID',
+            'leo_screenshots': 'LEO_SCREENSHOTS_FOLDER_ID'
+        }
         
-        files = results.get('files', [])
+        total_images = 0
         
-        print(f"📁 Found {len(files)} images in Google Drive folder:")
-        
-        for i, file in enumerate(files, 1):
-            size_mb = int(file.get('size', 0)) / (1024 * 1024) if file.get('size') else 0
-            print(f"   {i:2d}. {file['name']} ({size_mb:.1f}MB)")
+        for folder_name, env_var in folder_info.items():
+            folder_id = generator.folder_ids[folder_name]
             
-        if len(files) < 3:
-            print(f"\n⚠️  Warning: Only {len(files)} images found. Need at least 3 for carousel generation.")
+            if not folder_id:
+                print(f"❌ {folder_name}: Missing folder ID ({env_var})")
+                continue
+                
+            query = f"'{folder_id}' in parents and mimeType contains 'image/'"
+            results = generator.drive_service.files().list(
+                q=query,
+                fields="files(id, name, mimeType, size)",
+                pageSize=50
+            ).execute()
+            
+            files = results.get('files', [])
+            total_images += len(files)
+            
+            print(f"📁 {folder_name.upper()}: {len(files)} images")
+            
+            if len(files) == 0:
+                print(f"   ⚠️  No images found - check folder ID")
+            elif len(files) <= 5:
+                for i, file in enumerate(files, 1):
+                    size_mb = int(file.get('size', 0)) / (1024 * 1024) if file.get('size') else 0
+                    print(f"   {i}. {file['name']} ({size_mb:.1f}MB)")
+            else:
+                # Show first 3 images
+                for i, file in enumerate(files[:3], 1):
+                    size_mb = int(file.get('size', 0)) / (1024 * 1024) if file.get('size') else 0
+                    print(f"   {i}. {file['name']} ({size_mb:.1f}MB)")
+                print(f"   ... and {len(files) - 3} more")
+            
+            print()  # Empty line for readability
+            
+        print(f"📊 Total: {total_images} images across all folders")
+        
+        # Check for potential issues
+        missing_folders = [name for name, folder_id in generator.folder_ids.items() if not folder_id]
+        if missing_folders:
+            print(f"\n⚠️  Missing folder IDs: {', '.join(missing_folders)}")
             
     except Exception as e:
         print(f"❌ Error listing Google Drive images: {e}")
+
+def test_carousel_generation():
+    """Test one complete carousel generation"""
+    
+    print("🧪 Testing complete carousel generation...")
+    
+    try:
+        from carousel_generator import CarouselGenerator
+        
+        generator = CarouselGenerator()
+        
+        # Just test getting one image from each folder
+        print("Testing image retrieval from each folder...")
+        
+        folder_names = ['selfies', 'legs', 'paths', 'friends', 'leo_screenshots']
+        for folder_name in folder_names:
+            folder_id = generator.folder_ids[folder_name]
+            if folder_id:
+                try:
+                    image = generator.get_random_image_from_folder(folder_id, folder_name)
+                    print(f"✓ {folder_name}: {image['name']}")
+                except Exception as e:
+                    print(f"❌ {folder_name}: {e}")
+                    return False
+            else:
+                print(f"❌ {folder_name}: Missing folder ID")
+                return False
+        
+        print("✅ All folders accessible! Ready for carousel generation.")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+        return False
 
 def main():
     """Main configuration helper"""
@@ -115,10 +182,15 @@ def main():
     print("1️⃣  Inspecting BannerBear Template...")
     inspect_bannerbear_template()
     
-    print("\n" + "="*50)
+    print("\n" + "="*60)
     
-    print("\n2️⃣  Checking Google Drive Images...")
+    print("\n2️⃣  Checking Google Drive Folders...")
     list_google_drive_images()
+    
+    print("\n" + "="*60)
+    
+    print("\n3️⃣  Testing Image Retrieval...")
+    test_carousel_generation()
 
 if __name__ == "__main__":
     main()

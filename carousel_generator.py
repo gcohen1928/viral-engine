@@ -23,7 +23,16 @@ class CarouselGenerator:
         self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         self.bannerbear_api_key = os.getenv('BANNERBEAR_API_KEY')
         self.bannerbear_template_id = os.getenv('BANNERBEAR_TEMPLATE_ID')
-        self.drive_folder_id = os.getenv('GOOGLE_DRIVE_FOLDER_ID')
+        
+        # Load all 5 folder IDs
+        self.folder_ids = {
+            'selfies': os.getenv('SELFIES_FOLDER_ID'),
+            'legs': os.getenv('LEGS_FOLDER_ID'), 
+            'paths': os.getenv('PATHS_FOLDER_ID'),
+            'friends': os.getenv('FRIENDS_FOLDER_ID'),
+            'leo_screenshots': os.getenv('LEO_SCREENSHOTS_FOLDER_ID')
+        }
+        
         self.drive_service = None
         
     def authenticate_google_drive(self):
@@ -46,33 +55,58 @@ class CarouselGenerator:
                 
         self.drive_service = build('drive', 'v3', credentials=creds)
         
-    def get_random_images(self, count: int = 3) -> List[Dict]:
-        """Fetch random images from Google Drive folder"""
+    def get_random_image_from_folder(self, folder_id: str, folder_name: str) -> Dict:
+        """Fetch one random image from specific folder"""
         if not self.drive_service:
             self.authenticate_google_drive()
             
-        query = f"'{self.drive_folder_id}' in parents and mimeType contains 'image/'"
+        query = f"'{folder_id}' in parents and mimeType contains 'image/'"
         results = self.drive_service.files().list(
             q=query,
             fields="files(id, name, mimeType)"
         ).execute()
         
         files = results.get('files', [])
-        if len(files) < count:
-            raise ValueError(f"Not enough images in folder. Found {len(files)}, need {count}")
+        if not files:
+            raise ValueError(f"No images found in {folder_name} folder (ID: {folder_id})")
             
-        selected_files = random.sample(files, count)
+        # Pick random image
+        selected_file = random.choice(files)
+        
+        # Download image content
+        file_content = self.drive_service.files().get_media(fileId=selected_file['id']).execute()
+        
+        return {
+            'id': selected_file['id'],
+            'name': selected_file['name'],
+            'folder': folder_name,
+            'content': file_content,
+            'base64': base64.b64encode(file_content).decode('utf-8')
+        }
+        
+    def get_carousel_images(self) -> List[Dict]:
+        """Fetch one random image from each of the 5 folders"""
+        
+        # Validate folder IDs
+        missing_folders = [name for name, folder_id in self.folder_ids.items() if not folder_id]
+        if missing_folders:
+            raise ValueError(f"Missing folder IDs for: {', '.join(missing_folders)}")
         
         images = []
-        for file in selected_files:
-            file_content = self.drive_service.files().get_media(fileId=file['id']).execute()
-            images.append({
-                'id': file['id'],
-                'name': file['name'],
-                'content': file_content,
-                'base64': base64.b64encode(file_content).decode('utf-8')
-            })
+        folder_order = ['selfies', 'legs', 'paths', 'friends', 'leo_screenshots']
+        
+        for folder_name in folder_order:
+            folder_id = self.folder_ids[folder_name]
+            print(f"📁 Fetching random image from {folder_name}...")
             
+            try:
+                image = self.get_random_image_from_folder(folder_id, folder_name)
+                images.append(image)
+                print(f"✓ Selected: {image['name']}")
+            except Exception as e:
+                print(f"❌ Error with {folder_name} folder: {e}")
+                raise
+                
         return images
         
     def generate_carousel_copy(self, images: List[Dict]) -> List[str]:
@@ -88,8 +122,15 @@ class CarouselGenerator:
                 }
             })
         
-        prompt = """
-        I need you to generate copy for a 5-slide carousel post. I'm providing you with some images as inspiration.
+        # Enhanced prompt with folder context
+        prompt = f"""
+        I need you to generate copy for a 5-slide carousel post. I'm providing you with 5 images:
+        
+        Image 1: From "selfies" folder
+        Image 2: From "legs" folder  
+        Image 3: From "paths" folder
+        Image 4: From "friends" folder
+        Image 5: From "leo-screenshots" folder
         
         Here are some examples of good carousel copy:
         
@@ -99,12 +140,13 @@ class CarouselGenerator:
         Slide 4: "Mistake #3: Not Engaging With Your Audience 💬"
         Slide 5: "Ready to Fix These? Comment 'GROWTH' below! 🚀"
         
-        Based on the images provided, create engaging carousel copy that:
-        - Has a strong hook on slide 1
+        Based on the images provided and their context, create engaging carousel copy that:
+        - Has a strong hook on slide 1 
         - Provides value in slides 2-4
         - Ends with a clear call-to-action on slide 5
         - Uses relevant emojis
         - Is concise and engaging
+        - Relates to the image content when possible
         
         Return ONLY the 5 slide texts, one per line, numbered 1-5.
         """
@@ -141,13 +183,11 @@ class CarouselGenerator:
         return cleaned_slides[:5]  # Ensure only 5 slides
         
     def create_bannerbear_images(self, copy_texts: List[str], images: List[Dict]) -> List[str]:
-        """Create carousel images using BannerBear API"""
+        """Create carousel images using BannerBear API with specific image for each slide"""
         
         generated_images = []
         
-        for i, text in enumerate(copy_texts):
-            # Use the first image for all slides, or cycle through images
-            image_to_use = images[i % len(images)]
+        for i, (text, image) in enumerate(zip(copy_texts, images)):
             
             payload = {
                 "template": self.bannerbear_template_id,
@@ -158,7 +198,7 @@ class CarouselGenerator:
                     },
                     {
                         "name": "image_layer",  # Adjust to your template's image layer name  
-                        "image_url": f"data:image/jpeg;base64,{image_to_use['base64']}"
+                        "image_url": f"data:image/jpeg;base64,{image['base64']}"
                     }
                 ]
             }
@@ -168,7 +208,7 @@ class CarouselGenerator:
                 "Content-Type": "application/json"
             }
             
-            print(f"Creating slide {i+1}/5...")
+            print(f"Creating slide {i+1}/5 with {image['folder']} image...")
             
             response = requests.post(
                 "https://api.bannerbear.com/v2/images",
@@ -215,10 +255,10 @@ class CarouselGenerator:
         
         print("🎯 Starting carousel generation...")
         
-        # Step 1: Get random images from Google Drive
-        print("📁 Fetching random images from Google Drive...")
-        images = self.get_random_images(count=3)
-        print(f"✓ Retrieved {len(images)} images")
+        # Step 1: Get specific images from each folder
+        print("📁 Fetching images from 5 specific folders...")
+        images = self.get_carousel_images()
+        print(f"✓ Retrieved images from all 5 folders")
         
         # Step 2: Generate copy with OpenAI
         print("🤖 Generating carousel copy with OpenAI...")
