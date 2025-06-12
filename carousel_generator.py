@@ -37,15 +37,22 @@ class CarouselGenerator:
         
         # TikTok examples for few-shot prompting
         self.good_examples = [
-            # Add your 8 good TikTok examples here (5k+ views)
-            {"copy": "EXAMPLE_1", "views": "5000+"},
-            {"copy": "EXAMPLE_2", "views": "5000+"},
-            {"copy": "EXAMPLE_3", "views": "5000+"},
-            {"copy": "EXAMPLE_4", "views": "5000+"},
-            {"copy": "EXAMPLE_5", "views": "5000+"},
-            {"copy": "EXAMPLE_6", "views": "5000+"},
-            {"copy": "EXAMPLE_7", "views": "5000+"},
-            {"copy": "EXAMPLE_8", "views": "5000+"},
+            # High performing TikTok examples (5k+ views)
+            {"copy": "POV: you're trying to become that girl", "views": "11.8k"},
+            {"copy": "This is the dumbest way to be a consistent runner but it worked", "views": "7.9k"},
+            {"copy": "How to become a running girlie (step by step)", "views": "7.2k"},
+            {"copy": "I never thought I'd be a runner. i hated cardio and thought it was dumb", "views": "5.2k"},
+            {"copy": "I got into running for the dumbest reason", "views": "5.2k"},
+            {"copy": "POV: you're trying to become that girl", "views": "3.3k"},
+            {"copy": "POV: you gaslit yourself into running", "views": "1.8k"},
+            {"copy": "i bought a matching set and brooks after my first run. i felt like being financially tied to the sport will motivate me to keep running", "views": "1.8k"},
+        ]
+        
+        self.bad_examples = [
+            # Low performing TikTok examples (<400 views)
+            {"copy": "POV: you're becoming a running girlie", "views": "308"},
+            {"copy": "Why is every run just me not trying to fall apart?? Anyone else??", "views": "350"},
+            {"copy": "Here's how running saved our relationship (1/5)", "views": "276"},
         ]
         
         self.bad_examples = [

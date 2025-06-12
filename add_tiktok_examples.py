@@ -90,35 +90,30 @@ def main():
     print("📱 TikTok Example Formatter")
     print("="*50)
     
-    # ADD YOUR TIKTOK EXAMPLES HERE
-    # Format: [(copy_text, view_count), ...]
+    # Real TikTok examples based on performance data
     
     good_examples = [
-        # Replace these with your actual high-performing TikToks (5k+ views)
-        ("Your first high-performing TikTok copy here", "5.2k"),
-        ("Your second high-performing TikTok copy here", "8.1k"), 
-        ("Your third high-performing TikTok copy here", "12.5k"),
-        ("Your fourth high-performing TikTok copy here", "6.7k"),
-        ("Your fifth high-performing TikTok copy here", "9.3k"),
-        ("Your sixth high-performing TikTok copy here", "15.2k"),
-        ("Your seventh high-performing TikTok copy here", "7.8k"),
-        ("Your eighth high-performing TikTok copy here", "11.4k"),
+        # High performing TikToks (5k+ views)
+        ("POV: you're trying to become that girl", "11.8k"),
+        ("This is the dumbest way to be a consistent runner but it worked", "7.9k"), 
+        ("How to become a running girlie (step by step)", "7.2k"),
+        ("I never thought I'd be a runner. i hated cardio and thought it was dumb", "5.2k"),
+        ("I got into running for the dumbest reason", "5.2k"),
+        ("POV: you're trying to become that girl", "3.3k"),
+        ("POV: you gaslit yourself into running", "1.8k"),
+        ("i bought a matching set and brooks after my first run. i felt like being financially tied to the sport will motivate me to keep running", "1.8k"),
     ]
     
     bad_examples = [
-        # Replace these with your actual low-performing TikToks (<400 views)
-        ("Your first low-performing TikTok copy here", "245"),
-        ("Your second low-performing TikTok copy here", "378"),
-        ("Your third low-performing TikTok copy here", "156"),
+        # Low performing TikToks (<400 views)
+        ("POV: you're becoming a running girlie", "308"),
+        ("Why is every run just me not trying to fall apart?? Anyone else??", "350"),
+        ("Here's how running saved our relationship (1/5)", "276"),
     ]
     
-    # Check if examples are still placeholders
-    if any("Your" in copy for copy, _ in good_examples + bad_examples):
-        print("🚨 PLEASE UPDATE THE EXAMPLES ABOVE!")
-        print("\nReplace the placeholder text with your actual TikTok copy and view counts.")
-        print("\nExample format:")
-        print('("POV: you discover the secret to viral content", "15.2k"),')
-        return
+    print("🎯 Using your real TikTok performance data!")
+    print(f"✅ {len(good_examples)} high-performing examples")
+    print(f"❌ {len(bad_examples)} low-performing examples")
     
     # Format and update
     replacement_code = format_tiktok_examples(good_examples, bad_examples)
@@ -127,7 +122,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-# QUICK USAGE:
-# 1. Replace the examples in good_examples and bad_examples above
-# 2. Run: python3 add_tiktok_examples.py
-# 3. Your carousel generator will be updated with real examples!
+# USAGE:
+# This script now contains your real TikTok performance data!
+# Just run: python3 add_tiktok_examples.py
