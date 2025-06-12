@@ -140,6 +140,81 @@ def list_google_drive_images():
     except Exception as e:
         print(f"❌ Error listing Google Drive images: {e}")
 
+def test_configurable_generation():
+    """Test configurable slide generation with different counts"""
+    
+    print("🧪 Testing configurable carousel generation...")
+    
+    try:
+        from carousel_generator import CarouselGenerator
+        
+        generator = CarouselGenerator()
+        
+        # Test different slide counts
+        test_counts = [3, 4, 5, 6]
+        
+        for slide_count in test_counts:
+            print(f"\n📋 Testing {slide_count}-slide carousel:")
+            
+            try:
+                # Test image selection
+                images = generator.get_carousel_images(slide_count)
+                
+                print(f"   Images: selfie → ", end="")
+                for i in range(1, slide_count - 1):
+                    print(f"{images[i]['folder']} → ", end="")
+                print("leo-screenshot")
+                
+                # Test prompt generation  
+                prompt = generator.generate_dynamic_prompt(slide_count, images)
+                
+                if f"{slide_count} images" in prompt:
+                    print(f"   ✓ Prompt correctly references {slide_count} slides")
+                else:
+                    print(f"   ❌ Prompt doesn't reference {slide_count} slides")
+                    
+            except Exception as e:
+                print(f"   ❌ Error: {e}")
+                
+        print("\n✅ Configurable generation test complete!")
+        
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+
+def check_tiktok_examples():
+    """Check TikTok examples status"""
+    
+    print("📱 Checking TikTok examples...")
+    
+    try:
+        from carousel_generator import CarouselGenerator
+        
+        generator = CarouselGenerator()
+        
+        print(f"✓ Good examples: {len(generator.good_examples)}")
+        print(f"✓ Bad examples: {len(generator.bad_examples)}")
+        
+        # Check for placeholders
+        placeholders = 0
+        for example in generator.good_examples + generator.bad_examples:
+            if "EXAMPLE" in example['copy']:
+                placeholders += 1
+        
+        if placeholders > 0:
+            print(f"\n⚠️  Found {placeholders} placeholder examples")
+            print("💡 Run: python3 add_tiktok_examples.py to add real data")
+        else:
+            print("\n✅ Real TikTok examples loaded!")
+            
+            # Show first few examples
+            print("\nSample good examples:")
+            for i, example in enumerate(generator.good_examples[:3], 1):
+                preview = example['copy'][:50] + "..." if len(example['copy']) > 50 else example['copy']
+                print(f"   {i}. \"{preview}\" - {example['views']} views")
+                
+    except Exception as e:
+        print(f"❌ Error checking TikTok examples: {e}")
+
 def test_carousel_generation():
     """Test one complete carousel generation"""
     
@@ -150,24 +225,27 @@ def test_carousel_generation():
         
         generator = CarouselGenerator()
         
-        # Just test getting one image from each folder
-        print("Testing image retrieval from each folder...")
+        # Just test getting one image from each folder for 5 slides
+        print("Testing image retrieval for 5 slides...")
         
-        folder_names = ['selfies', 'legs', 'paths', 'friends', 'leo_screenshots']
-        for folder_name in folder_names:
-            folder_id = generator.folder_ids[folder_name]
-            if folder_id:
-                try:
-                    image = generator.get_random_image_from_folder(folder_id, folder_name)
-                    print(f"✓ {folder_name}: {image['name']}")
-                except Exception as e:
-                    print(f"❌ {folder_name}: {e}")
-                    return False
-            else:
-                print(f"❌ {folder_name}: Missing folder ID")
-                return False
+        slide_count = 5
+        images = generator.get_carousel_images(slide_count)
         
-        print("✅ All folders accessible! Ready for carousel generation.")
+        if len(images) == slide_count:
+            print(f"✓ Retrieved {len(images)} images correctly")
+            
+            # Show the structure
+            structure = []
+            for i, img in enumerate(images, 1):
+                structure.append(f"Slide {i}: {img['folder']}")
+                
+            print("   " + " → ".join([img['folder'] for img in images]))
+            
+        else:
+            print(f"❌ Expected {slide_count} images, got {len(images)}")
+            return False
+        
+        print("✅ Image retrieval test passed!")
         return True
         
     except Exception as e:
@@ -189,7 +267,17 @@ def main():
     
     print("\n" + "="*60)
     
-    print("\n3️⃣  Testing Image Retrieval...")
+    print("\n3️⃣  Testing Configurable Generation...")
+    test_configurable_generation()
+    
+    print("\n" + "="*60)
+    
+    print("\n4️⃣  Checking TikTok Examples...")
+    check_tiktok_examples()
+    
+    print("\n" + "="*60)
+    
+    print("\n5️⃣  Testing Image Retrieval...")
     test_carousel_generation()
 
 if __name__ == "__main__":

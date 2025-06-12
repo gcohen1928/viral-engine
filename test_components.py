@@ -111,6 +111,104 @@ def test_bannerbear():
         print(f"❌ BannerBear test failed: {e}")
         return False
 
+def test_configurable_slides():
+    """Test the new configurable slide functionality"""
+    print("\n🧪 Testing configurable slide generation...")
+    
+    try:
+        generator = CarouselGenerator()
+        
+        # Test different slide counts
+        for slide_count in [3, 4, 5]:
+            print(f"\n   Testing {slide_count}-slide generation...")
+            
+            try:
+                # Test image retrieval
+                images = generator.get_carousel_images(slide_count)
+                
+                if len(images) != slide_count:
+                    print(f"   ❌ Expected {slide_count} images, got {len(images)}")
+                    return False
+                
+                # Check first image is selfie
+                if images[0]['folder'] != 'selfies':
+                    print(f"   ❌ First image should be selfie, got {images[0]['folder']}")
+                    return False
+                
+                # Check last image is leo-screenshot  
+                if images[-1]['folder'] != 'leo_screenshots':
+                    print(f"   ❌ Last image should be leo-screenshot, got {images[-1]['folder']}")
+                    return False
+                
+                # Check middle images are from valid folders
+                middle_folders = {'legs', 'paths', 'friends'}
+                for i in range(1, slide_count - 1):
+                    if images[i]['folder'] not in middle_folders:
+                        print(f"   ❌ Middle image {i+1} from invalid folder: {images[i]['folder']}")
+                        return False
+                
+                print(f"   ✓ {slide_count}-slide structure correct")
+                
+                # Test prompt generation
+                prompt = generator.generate_dynamic_prompt(slide_count, images)
+                if f"{slide_count} images" not in prompt:
+                    print(f"   ❌ Prompt doesn't mention {slide_count} images")
+                    return False
+                    
+                print(f"   ✓ {slide_count}-slide prompt generated")
+                
+            except Exception as e:
+                print(f"   ❌ Error testing {slide_count} slides: {e}")
+                return False
+        
+        print("✓ All configurable slide tests passed!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Configurable slide test failed: {e}")
+        return False
+
+def test_tiktok_examples():
+    """Test TikTok example integration"""
+    print("\n🧪 Testing TikTok example integration...")
+    
+    try:
+        generator = CarouselGenerator()
+        
+        # Check if examples are properly loaded
+        if len(generator.good_examples) != 8:
+            print(f"⚠️  Expected 8 good examples, found {len(generator.good_examples)}")
+            
+        if len(generator.bad_examples) != 3:
+            print(f"⚠️  Expected 3 bad examples, found {len(generator.bad_examples)}")
+        
+        # Check if examples are still placeholders
+        placeholder_count = 0
+        for example in generator.good_examples + generator.bad_examples:
+            if "EXAMPLE" in example['copy']:
+                placeholder_count += 1
+        
+        if placeholder_count > 0:
+            print(f"⚠️  Found {placeholder_count} placeholder examples")
+            print("   Use add_tiktok_examples.py to add real TikTok data")
+        else:
+            print("✓ Real TikTok examples loaded")
+        
+        # Test few-shot prompt building
+        few_shot_text = generator.build_few_shot_examples()
+        
+        if "HIGH PERFORMING EXAMPLES" in few_shot_text:
+            print("✓ Few-shot prompt structure correct")
+        else:
+            print("❌ Few-shot prompt structure incorrect")
+            return False
+            
+        return True
+        
+    except Exception as e:
+        print(f"❌ TikTok example test failed: {e}")
+        return False
+
 def test_environment():
     """Test environment variables"""
     print("🧪 Testing environment setup...")
@@ -155,15 +253,17 @@ def main():
         results.append(test_google_drive())
         results.append(test_openai())
         results.append(test_bannerbear())
+        results.append(test_configurable_slides())
+        results.append(test_tiktok_examples())
     
     print(f"\n📊 Test Results:")
-    print(f"Environment: {'✅' if results[0] else '❌'}")
+    test_names = ["Environment", "Google Drive", "OpenAI", "BannerBear", "Configurable Slides", "TikTok Examples"]
     
-    if len(results) > 1:
-        print(f"Google Drive: {'✅' if results[1] else '❌'}")
-        print(f"OpenAI: {'✅' if results[2] else '❌'}")
-        print(f"BannerBear: {'✅' if results[3] else '❌'}")
-        
+    for i, (name, result) in enumerate(zip(test_names, results)):
+        if i < len(results):
+            print(f"{name}: {'✅' if result else '❌'}")
+    
+    if len(results) > 1:        
         if all(results):
             print("\n🎉 All tests passed! Ready to generate carousels.")
         else:

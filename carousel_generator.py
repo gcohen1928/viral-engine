@@ -35,6 +35,26 @@ class CarouselGenerator:
         
         self.drive_service = None
         
+        # TikTok examples for few-shot prompting
+        self.good_examples = [
+            # Add your 8 good TikTok examples here (5k+ views)
+            {"copy": "EXAMPLE_1", "views": "5000+"},
+            {"copy": "EXAMPLE_2", "views": "5000+"},
+            {"copy": "EXAMPLE_3", "views": "5000+"},
+            {"copy": "EXAMPLE_4", "views": "5000+"},
+            {"copy": "EXAMPLE_5", "views": "5000+"},
+            {"copy": "EXAMPLE_6", "views": "5000+"},
+            {"copy": "EXAMPLE_7", "views": "5000+"},
+            {"copy": "EXAMPLE_8", "views": "5000+"},
+        ]
+        
+        self.bad_examples = [
+            # Add your 3 bad TikTok examples here (<400 views)
+            {"copy": "BAD_EXAMPLE_1", "views": "<400"},
+            {"copy": "BAD_EXAMPLE_2", "views": "<400"},
+            {"copy": "BAD_EXAMPLE_3", "views": "<400"},
+        ]
+        
     def authenticate_google_drive(self):
         """Authenticate with Google Drive API"""
         SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -84,33 +104,131 @@ class CarouselGenerator:
             'base64': base64.b64encode(file_content).decode('utf-8')
         }
         
-    def get_carousel_images(self) -> List[Dict]:
-        """Fetch one random image from each of the 5 folders"""
+    def get_carousel_images(self, slide_count: int) -> List[Dict]:
+        """Fetch images for carousel: selfie first, leo-screenshot last, random middle"""
         
         # Validate folder IDs
         missing_folders = [name for name, folder_id in self.folder_ids.items() if not folder_id]
         if missing_folders:
             raise ValueError(f"Missing folder IDs for: {', '.join(missing_folders)}")
         
-        images = []
-        folder_order = ['selfies', 'legs', 'paths', 'friends', 'leo_screenshots']
-        
-        for folder_name in folder_order:
-            folder_id = self.folder_ids[folder_name]
-            print(f"📁 Fetching random image from {folder_name}...")
+        if slide_count < 2:
+            raise ValueError("Need at least 2 slides (selfie + leo-screenshot)")
             
-            try:
-                image = self.get_random_image_from_folder(folder_id, folder_name)
-                images.append(image)
-                print(f"✓ Selected: {image['name']}")
-            except Exception as e:
-                print(f"❌ Error with {folder_name} folder: {e}")
-                raise
+        images = []
+        
+        # Slide 1: Always selfie
+        print(f"📁 Slide 1: Fetching from selfies...")
+        selfie_image = self.get_random_image_from_folder(self.folder_ids['selfies'], 'selfies')
+        images.append(selfie_image)
+        print(f"✓ Selected: {selfie_image['name']}")
+        
+        # Middle slides: Random from legs, paths, friends
+        middle_folders = ['legs', 'paths', 'friends']
+        for i in range(2, slide_count):  # slides 2 to n-1
+            folder_name = random.choice(middle_folders)
+            folder_id = self.folder_ids[folder_name]
+            
+            print(f"📁 Slide {i}: Fetching from {folder_name}...")
+            image = self.get_random_image_from_folder(folder_id, folder_name)
+            images.append(image)
+            print(f"✓ Selected: {image['name']}")
+        
+        # Last slide: Always leo-screenshot
+        print(f"📁 Slide {slide_count}: Fetching from leo-screenshots...")
+        leo_image = self.get_random_image_from_folder(self.folder_ids['leo_screenshots'], 'leo_screenshots')
+        images.append(leo_image)
+        print(f"✓ Selected: {leo_image['name']}")
                 
         return images
+    
+    def build_few_shot_examples(self) -> str:
+        """Build few-shot examples from TikTok data"""
         
-    def generate_carousel_copy(self, images: List[Dict]) -> List[str]:
-        """Generate carousel copy using OpenAI Vision API"""
+        examples_text = "Here are examples of TikTok copy performance:\n\n"
+        
+        examples_text += "HIGH PERFORMING EXAMPLES (5k+ views):\n"
+        for i, example in enumerate(self.good_examples[:4], 1):  # Show 4 good examples
+            examples_text += f"{i}. \"{example['copy']}\" - {example['views']} views\n"
+        
+        examples_text += "\nLOW PERFORMING EXAMPLES (<400 views):\n"
+        for i, example in enumerate(self.bad_examples, 1):  # Show all bad examples
+            examples_text += f"{i}. \"{example['copy']}\" - {example['views']} views\n"
+            
+        examples_text += "\nBased on these patterns, create copy that follows the high-performing style.\n"
+        
+        return examples_text
+        
+    def generate_dynamic_prompt(self, slide_count: int, images: List[Dict]) -> str:
+        """Generate dynamic prompt based on slide count and images"""
+        
+        # Build image context
+        image_context = f"I'm providing you with {slide_count} images:\n"
+        image_context += "Image 1: From 'selfies' folder (always first slide)\n"
+        
+        for i in range(2, slide_count):
+            image_context += f"Image {i}: From '{images[i-1]['folder']}' folder\n"
+            
+        image_context += f"Image {slide_count}: From 'leo-screenshots' folder (always last slide)\n"
+        
+        # Build few-shot examples
+        few_shot_examples = self.build_few_shot_examples()
+        
+        # Dynamic slide structure
+        if slide_count == 3:
+            structure = """
+Create a 3-slide carousel:
+- Slide 1: Strong hook/attention grabber
+- Slide 2: Main value/insight 
+- Slide 3: Call-to-action with leo screenshot
+"""
+        elif slide_count == 4:
+            structure = """
+Create a 4-slide carousel:
+- Slide 1: Strong hook/attention grabber
+- Slide 2: Problem/pain point
+- Slide 3: Solution/insight
+- Slide 4: Call-to-action with leo screenshot  
+"""
+        elif slide_count == 5:
+            structure = """
+Create a 5-slide carousel:
+- Slide 1: Strong hook/attention grabber
+- Slide 2: Problem/setup
+- Slide 3: Insight/tip #1
+- Slide 4: Insight/tip #2  
+- Slide 5: Call-to-action with leo screenshot
+"""
+        else:
+            structure = f"""
+Create a {slide_count}-slide carousel:
+- Slide 1: Strong hook/attention grabber
+- Slides 2-{slide_count-1}: Value/insights/tips
+- Slide {slide_count}: Call-to-action with leo screenshot
+"""
+
+        prompt = f"""
+{image_context}
+
+{few_shot_examples}
+
+{structure}
+
+Requirements:
+- Use proven high-performing patterns from the examples above
+- Keep each slide concise and punchy
+- Use relevant emojis sparingly 
+- Make slide 1 a strong hook that stops scrolling
+- End with clear call-to-action on final slide
+- Relate to image content when possible
+
+Return ONLY the {slide_count} slide texts, one per line, numbered 1-{slide_count}.
+"""
+        
+        return prompt
+        
+    def generate_carousel_copy(self, slide_count: int, images: List[Dict]) -> List[str]:
+        """Generate carousel copy using OpenAI Vision API with dynamic prompting"""
         
         # Prepare images for OpenAI
         image_messages = []
@@ -122,34 +240,8 @@ class CarouselGenerator:
                 }
             })
         
-        # Enhanced prompt with folder context
-        prompt = f"""
-        I need you to generate copy for a 5-slide carousel post. I'm providing you with 5 images:
-        
-        Image 1: From "selfies" folder
-        Image 2: From "legs" folder  
-        Image 3: From "paths" folder
-        Image 4: From "friends" folder
-        Image 5: From "leo-screenshots" folder
-        
-        Here are some examples of good carousel copy:
-        
-        Slide 1: "5 Marketing Mistakes That Are Killing Your Growth 🚫"
-        Slide 2: "Mistake #1: Ignoring Your Analytics Data 📊"
-        Slide 3: "Mistake #2: Posting Without a Strategy 📝"
-        Slide 4: "Mistake #3: Not Engaging With Your Audience 💬"
-        Slide 5: "Ready to Fix These? Comment 'GROWTH' below! 🚀"
-        
-        Based on the images provided and their context, create engaging carousel copy that:
-        - Has a strong hook on slide 1 
-        - Provides value in slides 2-4
-        - Ends with a clear call-to-action on slide 5
-        - Uses relevant emojis
-        - Is concise and engaging
-        - Relates to the image content when possible
-        
-        Return ONLY the 5 slide texts, one per line, numbered 1-5.
-        """
+        # Generate dynamic prompt
+        prompt = self.generate_dynamic_prompt(slide_count, images)
         
         messages = [
             {
@@ -164,7 +256,7 @@ class CarouselGenerator:
         response = self.openai_client.chat.completions.create(
             model="gpt-4-vision-preview",
             messages=messages,
-            max_tokens=500
+            max_tokens=600
         )
         
         copy_text = response.choices[0].message.content
@@ -173,14 +265,14 @@ class CarouselGenerator:
         # Clean up numbering if present
         cleaned_slides = []
         for slide in slides:
-            if slide.startswith(('1.', '2.', '3.', '4.', '5.')):
+            if slide.startswith(tuple(f'{i}.' for i in range(1, slide_count+1))):
                 cleaned_slides.append(slide[2:].strip())
-            elif slide.startswith(('1:', '2:', '3:', '4:', '5:')):
+            elif slide.startswith(tuple(f'{i}:' for i in range(1, slide_count+1))):
                 cleaned_slides.append(slide[2:].strip())
             else:
                 cleaned_slides.append(slide)
                 
-        return cleaned_slides[:5]  # Ensure only 5 slides
+        return cleaned_slides[:slide_count]  # Ensure correct number of slides
         
     def create_bannerbear_images(self, copy_texts: List[str], images: List[Dict]) -> List[str]:
         """Create carousel images using BannerBear API with specific image for each slide"""
@@ -208,7 +300,7 @@ class CarouselGenerator:
                 "Content-Type": "application/json"
             }
             
-            print(f"Creating slide {i+1}/5 with {image['folder']} image...")
+            print(f"Creating slide {i+1}/{len(copy_texts)} with {image['folder']} image...")
             
             response = requests.post(
                 "https://api.bannerbear.com/v2/images",
@@ -229,18 +321,23 @@ class CarouselGenerator:
             
         return generated_images
         
-    def download_and_save_images(self, image_urls: List[str], output_dir: str = "generated_carousel") -> List[str]:
+    def download_and_save_images(self, image_urls: List[str], slide_count: int, output_dir: str = "generated_carousel") -> List[str]:
         """Download generated images and save locally"""
         
         os.makedirs(output_dir, exist_ok=True)
         saved_paths = []
+        
+        # Create subfolder with timestamp and slide count
+        timestamp = int(time.time())
+        carousel_dir = os.path.join(output_dir, f"{slide_count}_slides_{timestamp}")
+        os.makedirs(carousel_dir, exist_ok=True)
         
         for i, url in enumerate(image_urls):
             if url:
                 response = requests.get(url)
                 if response.status_code == 200:
                     filename = f"slide_{i+1}.png"
-                    filepath = os.path.join(output_dir, filename)
+                    filepath = os.path.join(carousel_dir, filename)
                     
                     with open(filepath, 'wb') as f:
                         f.write(response.content)
@@ -250,20 +347,20 @@ class CarouselGenerator:
                     
         return saved_paths
         
-    def generate_carousel(self) -> List[str]:
+    def generate_carousel(self, slide_count: int = 5) -> List[str]:
         """Main function to generate complete carousel"""
         
-        print("🎯 Starting carousel generation...")
+        print(f"🎯 Starting {slide_count}-slide carousel generation...")
         
-        # Step 1: Get specific images from each folder
-        print("📁 Fetching images from 5 specific folders...")
-        images = self.get_carousel_images()
-        print(f"✓ Retrieved images from all 5 folders")
+        # Step 1: Get specific images based on slide count
+        print(f"📁 Fetching images for {slide_count} slides...")
+        images = self.get_carousel_images(slide_count)
+        print(f"✓ Retrieved {len(images)} images")
         
         # Step 2: Generate copy with OpenAI
         print("🤖 Generating carousel copy with OpenAI...")
-        copy_texts = self.generate_carousel_copy(images)
-        print("✓ Generated copy for 5 slides")
+        copy_texts = self.generate_carousel_copy(slide_count, images)
+        print(f"✓ Generated copy for {slide_count} slides")
         for i, text in enumerate(copy_texts, 1):
             print(f"   Slide {i}: {text[:50]}...")
             
@@ -273,17 +370,35 @@ class CarouselGenerator:
         
         # Step 4: Download and save final images
         print("💾 Downloading final images...")
-        saved_paths = self.download_and_save_images(image_urls)
+        saved_paths = self.download_and_save_images(image_urls, slide_count)
         
-        print(f"🎉 Carousel generation complete! Generated {len(saved_paths)} images")
-        print(f"📂 Images saved in: generated_carousel/")
+        print(f"🎉 {slide_count}-slide carousel generation complete!")
+        print(f"📂 Images saved in: {saved_paths[0].split('/')[0]}/")
         
         return saved_paths
 
-if __name__ == "__main__":
+def main():
+    """Main function with configurable slide count"""
+    
+    # Get slide count from user
+    try:
+        slide_count = input("How many slides do you want? (2-10, default 5): ")
+        slide_count = int(slide_count) if slide_count.strip() else 5
+        
+        if slide_count < 2 or slide_count > 10:
+            print("⚠️  Using default of 5 slides (must be 2-10)")
+            slide_count = 5
+            
+    except ValueError:
+        print("⚠️  Invalid input, using default of 5 slides")
+        slide_count = 5
+    
     generator = CarouselGenerator()
     try:
-        carousel_paths = generator.generate_carousel()
-        print("\n🚀 Ready to post! Your carousel images are ready.")
+        carousel_paths = generator.generate_carousel(slide_count)
+        print(f"\n🚀 Ready to post! Your {slide_count}-slide carousel is ready.")
     except Exception as e:
         print(f"❌ Error: {e}")
+
+if __name__ == "__main__":
+    main()
